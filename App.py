@@ -9,13 +9,13 @@ from google.oauth2.service_account import Credentials
 from sklearn.linear_model import LinearRegression
 
 # =========================
-# Page
+# PAGE
 # =========================
-st.set_page_config(page_title="V6 Quant System", page_icon="📊")
-st.title("📊 V6 雲端量化交易系統（GitHub版）")
+st.set_page_config(page_title="Quant V6 FIXED", page_icon="📊")
+st.title("📊 雲端量化交易系統（最終修正版）")
 
 # =========================
-# Google Sheets（雲端）
+# GOOGLE SHEETS
 # =========================
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
 
@@ -31,22 +31,27 @@ def save_trade(stock, side, qty, price):
     sheet.append_row([stock, side, qty, price])
 
 def load_trades():
-    data = sheet.get_all_records()
-    return pd.DataFrame(data)
+    return pd.DataFrame(sheet.get_all_records())
 
 # =========================
-# Data safe load
+# SAFE DOWNLOAD（修正 MultiIndex）
 # =========================
 def safe_download(symbol, period="1y"):
-    df = yf.download(symbol, period=period, auto_adjust=True)
+    df = yf.download(symbol, period=period, auto_adjust=True, progress=False)
 
-    if df.empty:
+    if df is None or df.empty:
         return None
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.droplevel(1)
 
     return df
+
+# =========================
+# SAFE PRICE（完全修正 Series bug）
+# =========================
+def get_price(df):
+    return float(df["Close"].to_numpy()[-1])
 
 # =========================
 # RSI
@@ -65,7 +70,7 @@ def rsi(df, period=14):
     return df
 
 # =========================
-# Strategy MA
+# MA STRATEGY
 # =========================
 def strategy(df):
     df["MA5"] = df["Close"].rolling(5).mean()
@@ -78,7 +83,7 @@ def strategy(df):
     return df
 
 # =========================
-# Backtest
+# BACKTEST
 # =========================
 def backtest(df, cash=100000):
 
@@ -87,7 +92,7 @@ def backtest(df, cash=100000):
 
     for i in range(len(df)):
 
-        price = df["Close"].iloc[i]
+        price = float(df["Close"].iloc[i])
         signal = df["signal"].iloc[i]
 
         if signal == 1 and cash > price:
@@ -104,7 +109,7 @@ def backtest(df, cash=100000):
     return df
 
 # =========================
-# Metrics
+# METRICS
 # =========================
 def max_drawdown(equity):
     peak = equity[0]
@@ -120,7 +125,7 @@ def sharpe(equity):
     ret = np.diff(equity) / equity[:-1]
     return np.mean(ret) / (np.std(ret) + 1e-9)
 
-def trend_predict(df):
+def predict(df):
     x = np.arange(len(df)).reshape(-1, 1)
     y = df["Close"].values.reshape(-1, 1)
 
@@ -140,13 +145,16 @@ stocks = {
     "特斯拉": "TSLA"
 }
 
-name = st.selectbox("選擇股票", list(stocks.keys()))
+name = st.selectbox("股票", list(stocks.keys()))
 symbol = stocks[name]
 
-period = st.selectbox("資料區間", ["6mo", "1y", "2y"], index=1)
+period = st.selectbox("區間", ["6mo", "1y", "2y"], index=1)
 
-qty = st.number_input("交易數量", 1, 1000, 1)
+qty = st.number_input("數量", 1, 1000, 1)
 
+# =========================
+# DATA
+# =========================
 df = safe_download(symbol, period)
 
 if df is None:
@@ -158,28 +166,29 @@ df = rsi(df)
 df = strategy(df)
 df = backtest(df)
 
+price = get_price(df)
+
 # =========================
-# Metrics
+# METRICS
 # =========================
 ret = (df["equity"].iloc[-1] / df["equity"].iloc[0]) - 1
 mdd = max_drawdown(df["equity"].values)
 sh = sharpe(df["equity"].values)
 
-st.metric("總報酬率", f"{ret*100:.2f}%")
+st.metric("報酬率", f"{ret*100:.2f}%")
 st.metric("最大回撤", f"{mdd*100:.2f}%")
 st.metric("Sharpe", f"{sh:.2f}")
 
 # =========================
-# Equity Curve
+# EQUITY
 # =========================
 st.subheader("📈 Equity Curve")
-
 fig, ax = plt.subplots()
 ax.plot(df["equity"])
 st.pyplot(fig)
 
 # =========================
-# K線 + RSI
+# KLINE + RSI
 # =========================
 apds = [
     mpf.make_addplot(df["MA5"], color="blue"),
@@ -201,32 +210,30 @@ fig, _ = mpf.plot(
 st.pyplot(fig)
 
 # =========================
-# Trade Buttons
+# TRADE
 # =========================
-st.subheader("💰 模擬交易")
-
-price = float(df["Close"].iloc[-1])
+st.subheader("💰 交易（寫入 Google Sheets）")
 
 col1, col2 = st.columns(2)
 
 with col1:
     if st.button("BUY"):
         save_trade(name, "BUY", qty, price)
-        st.success("BUY 已寫入 Google Sheets")
+        st.success("BUY 已寫入雲端")
 
 with col2:
     if st.button("SELL"):
         save_trade(name, "SELL", qty, price)
-        st.success("SELL 已寫入 Google Sheets")
+        st.success("SELL 已寫入雲端")
 
 # =========================
-# Cloud trades
+# CLOUD LOG
 # =========================
 st.subheader("📜 雲端交易紀錄")
 st.dataframe(load_trades())
 
 # =========================
-# Prediction
+# PREDICTION
 # =========================
-st.subheader("📊 趨勢預測（回歸）")
-st.write(trend_predict(df))
+st.subheader("📊 趨勢預測")
+st.write(predict(df))
