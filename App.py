@@ -7,6 +7,18 @@ import matplotlib.pyplot as plt
 import gspread
 from google.oauth2.service_account import Credentials
 from sklearn.linear_model import LinearRegression
+from google.oauth2.service_account import Credentials
+import gspread
+import streamlit as st
+
+SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
+
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=SCOPE
+)
+
+client = gspread.authorize(creds)
 
 # =========================
 # PAGE
