@@ -24,7 +24,7 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 
 # ⚠️ 用 ID（穩定，不用 Drive）
-SHEET_ID = "你的SpreadsheetID"
+SHEET_ID = "1BOK77GxxCDVesPJVLkf_hR36gksv8U3Bsptb0yvdyKo"
 sheet = client.open_by_key(SHEET_ID).sheet1
 
 # =========================
