@@ -1,3 +1,5 @@
+import yfinance as yf
+import traceback
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -30,19 +32,30 @@ sheet = client.open_by_key(SHEET_ID).sheet1
 # =========================
 def get_price(symbol):
     try:
-        df = yf.download(symbol, period="6mo", auto_adjust=True, progress=False)
+        df = yf.download(
+            symbol,
+            period="6mo",
+            auto_adjust=True,
+            progress=False
+        )
 
-        if df is None or df.empty:
+        print(df)
+
+        if df.empty:
+            print("DataFrame 是空的")
             return None
+
+        print(df.columns)
 
         close = df["Close"].dropna()
 
-        if len(close) == 0:
-            return None
+        print(close)
 
         return float(close.iloc[-1])
 
-    except:
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
         return None
 
 # =========================
