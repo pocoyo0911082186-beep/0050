@@ -40,7 +40,8 @@ def get_price(symbol):
         )
 
         print(df)
-
+        print(df.columns)
+        print(df.head())
         if df.empty:
             print("DataFrame 是空的")
             return None
